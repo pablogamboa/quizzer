@@ -1,0 +1,63 @@
+name = "quizzer"
+main = "src/index.ts"
+compatibility_date = "2025-08-16"
+assets = { directory = "./public" }
+workers_dev = true
+
+routes = [
+  { pattern = "quizzer.pablomarti.dev", custom_domain = true },
+]
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "quizzer"
+database_id = "b204d407-2991-4381-a406-29cd5802d9bc"
+
+# KV Namespace for game codes
+[[kv_namespaces]]
+binding = "GAME_CODES"
+id = "557a8aedbefc403e836e799156f5f65b"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "GAME_SESSIONS_RPC"
+class_name = "GameSessionRpc"
+script_name = "quizzer"
+
+# Migrations must be kept in order - can't remove old ones
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameSessionRpc"]
+
+# Development configuration
+[env.development]
+name = "quizzer-dev"
+
+routes = [
+  { pattern = "quizzer-dev.pablomarti.dev", custom_domain = true }
+]
+
+[env.development.vars]
+ENVIRONMENT = "development"
+
+[env.development.observability]
+enabled = true
+head_sampling_rate = 1
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "quizzer-dev"
+database_id = "0c512ecc-5428-44c3-9e76-232f3aae5460"
+
+[[env.development.kv_namespaces]]
+binding = "GAME_CODES"
+id = "60c87d5029d94f0892353263d88f6fd4"

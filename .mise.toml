@@ -1,0 +1,49 @@
+[env]
+_.path = ['{{config_root}}/node_modules/.bin']
+
+[tools]
+node = "lts"
+
+[tasks.build]
+alias = "b"
+description = "Build the project"
+run = "npm run build"
+
+[tasks.deploy]
+alias = "d"
+description = "Deploy the project"
+run = "npm run deploy"
+
+[tasks.format]
+alias = "f"
+description = "Format the project"
+run = "npm run format"
+
+[tasks.serve]
+alias = "s"
+description = "Runs API server and frontend"
+run = "npm run dev:both"
+
+[tasks."test:unit"]
+description = "Runs the unit tests"
+run = "npm run test:ci"
+alias = "tu"
+
+[tasks."test:e2e"]
+description = "Runs the E2E tests"
+alias = "te"
+usage = """
+flag "-a --all <all>" default="false"
+"""
+run = """
+if [ '{{flag(name='all')}}' = 'true' ]; then
+npm run test:e2e
+else
+npm run test:e2e -- --project=chromium
+fi
+"""
+
+[tasks.test]
+alias = "t"
+depends = [ "test:*" ]
+description = "Runs unit and E2E tests"

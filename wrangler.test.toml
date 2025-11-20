@@ -1,0 +1,28 @@
+name = "quizzer"
+main = "src/index.ts"
+compatibility_date = "2025-08-16"
+assets = { directory = "./public" }
+
+[vars]
+ENVIRONMENT = "test"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "quizzer-test"
+database_id = "test-db-id"
+
+# KV Namespace for game codes
+[[kv_namespaces]]
+binding = "GAME_CODES"
+id = "test-kv-id"
+
+# Durable Objects - without script_name for local testing
+[[durable_objects.bindings]]
+name = "GAME_SESSIONS_RPC"
+class_name = "GameSessionRpc"
+
+# Migrations for SQLite-backed Durable Objects
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameSessionRpc"]
