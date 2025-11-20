@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Question {
+  id        Int      @id @default(autoincrement())
+  type      String   // 'trivia' | 'question' | 'picture'
+  question  String
+  category  String
+  difficulty String  // 'easy' | 'medium' | 'hard'
+  info      String?  // JSON field for metadata (e.g., {"imageUrl": "..."} for picture questions)
+  theme     String?  // Optional theme key for specialized quizzes
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  answers          Answer[]
+  textAnswers      TextAnswer[]
+
+  @@index([type])
+  @@index([category])
+  @@index([difficulty])
+  @@index([theme])
+  @@map("questions")
+}
+
+model Answer {
+  id          Int     @id @default(autoincrement())
+  questionId  Int     @map("question_id")
+  answerText  String  @map("answer_text")
+  isCorrect   Boolean @default(false) @map("is_correct")
+  answerOrder Int     @map("answer_order")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("answers")
+}
+
+model TextAnswer {
+  id            Int     @id @default(autoincrement())
+  questionId    Int     @map("question_id")
+  correctAnswer String  @map("correct_answer")
+  isPrimary     Boolean @default(true) @map("is_primary")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("text_answers")
+}
+
+model HallOfFame {
+  id                 Int       @id @default(autoincrement())
+  playerName         String    @map("player_name")
+  score              Int
+  totalQuestions     Int       @map("total_questions")
+  category           String?
+  difficulty         String?
+  datePlayed         DateTime  @default(now()) @map("date_played")
+  timeTakenSeconds   Int?      @map("time_taken_seconds")
+
+  @@index([category])
+  @@index([difficulty])
+  @@index([datePlayed(sort: Desc)])
+  @@map("hall_of_fame")
+}
+
+model QuizTheme {
+  id          Int      @id @default(autoincrement())
+  themeKey    String   @unique @map("theme_key")
+  themeName   String   @map("theme_name")
+  category    String
+  description String?
+  icon        String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([category])
+  @@index([isActive])
+  @@map("quiz_themes")
+}

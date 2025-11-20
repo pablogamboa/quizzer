@@ -1,0 +1,63 @@
+{
+    "name": "quizzer",
+    "version": "1.0.0",
+    "description": "Full-stack quiz application deployed as a single Cloudflare Worker",
+    "main": "src/index.ts",
+    "type": "module",
+    "scripts": {
+        "dev": "wrangler dev",
+        "dev:frontend": "vite",
+        "dev:both": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
+        "deploy": "npm run build && wrangler deploy",
+        "build": "vite build",
+        "generate-types": "wrangler types",
+        "generate:prisma": "prisma generate",
+        "type-check": "npm run generate-types && tsc",
+        "start": "wrangler dev",
+        "format": "prettier --write . && js-beautify src/frontend/**/*.js",
+        "preview": "wrangler dev --remote",
+        "test": "vitest",
+        "test:watch": "vitest --watch",
+        "test:ci": "vitest run",
+        "test:e2e": "playwright test",
+        "test:e2e:ui": "playwright test --ui",
+        "test:e2e:debug": "playwright test --debug",
+        "test:e2e:headed": "playwright test --headed",
+        "postinstall": "prisma generate"
+    },
+    "dependencies": {
+        "capnweb": "^0.2.0",
+        "hono": "^4.9.2",
+        "js-beautify": "^1.15.4"
+    },
+    "devDependencies": {
+        "@cloudflare/vitest-pool-workers": "^0.8.66",
+        "@playwright/test": "^1.55.0",
+        "@prisma/adapter-d1": "^6.16.3",
+        "@prisma/client": "^6.16.3",
+        "@sveltejs/vite-plugin-svelte": "^6.1.3",
+        "@types/node": "^24.3.0",
+        "concurrently": "^9.2.0",
+        "miniflare": "^4.20250816.1",
+        "playwright": "^1.55.0",
+        "prettier": "^3.6.2",
+        "prettier-plugin-svelte": "^3.4.0",
+        "prisma": "^6.16.3",
+        "svelte": "^5.38.2",
+        "typescript": "^5.0.0",
+        "vite": "^7.1.3",
+        "vite-plugin-html": "^3.2.2",
+        "vite-plugin-static-copy": "^3.1.3",
+        "vitest": "^3.2.4",
+        "wrangler": "^4.49.0"
+    },
+    "keywords": [
+        "quiz",
+        "hono",
+        "cloudflare-workers",
+        "typescript",
+        "full-stack"
+    ],
+    "author": "Pablo Marti",
+    "license": "MIT"
+}
