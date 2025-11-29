@@ -67,6 +67,23 @@ The online multiplayer mode uses **Cap'n Web RPC** for bidirectional, type-safe 
 - ⚡ Cloudflare Durable Objects for real-time multiplayer state
 - 🔌 Cap'n Web RPC for type-safe real-time communication
 
+### Admin Interface
+
+Located at `/admin/`, the admin interface provides a web-based management tool for quiz content:
+
+- 🔐 Protected by HTTP Basic Authentication (see Environment Variables below)
+- 📊 Dashboard with quiz statistics overview (questions by type, difficulty, category)
+- ❓ Questions management (CRUD for trivia, text, and picture question types)
+- 🎨 Themes management with question counts per theme
+- 📤 Image upload to Cloudflare R2 for picture questions
+- 📱 Responsive design for mobile and desktop
+
+**Accessing the Admin:**
+
+1. Navigate to `http://localhost:8787/admin/` in development
+2. Login with credentials from `wrangler.toml` (default: admin/admin123)
+3. For production, set secrets via: `wrangler secret put ADMIN_PASSWORD`
+
 ## 🎨 Design System - "Neon Quiz Show"
 
 The application features a stunning retro-futuristic design system combining 80s neon aesthetics with modern sophistication. The redesign creates a premium quiz show experience that stands out from generic quiz apps.

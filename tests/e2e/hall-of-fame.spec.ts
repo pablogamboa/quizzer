@@ -461,14 +461,18 @@ test.describe('Hall of Fame - Solo Quest Mode', () => {
         await page.click('button:has-text("Save Score")')
 
         // Wait for result screen to fully load before viewing hall of fame
-        await expect(page.locator('.result-screen')).toBeVisible({ timeout: 10000 })
+        await expect(page.locator('.result-screen')).toBeVisible({
+            timeout: 10000,
+        })
         await page.waitForTimeout(500) // Allow state to settle
 
         // View hall of fame
         await page.click('button:has-text("Hall of Fame")')
 
         // Wait for hall of fame to load
-        await expect(page.locator('.hall-of-fame')).toBeVisible({ timeout: 10000 })
+        await expect(page.locator('.hall-of-fame')).toBeVisible({
+            timeout: 10000,
+        })
 
         // Should see performance label (may take time to load via API)
         const performanceLabel = page.locator('.performance-label').first()

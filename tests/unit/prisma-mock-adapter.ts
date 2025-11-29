@@ -7,9 +7,11 @@ import type {
 } from '../../src/data/questions'
 
 export class MockPrismaAdapter {
-    private questions: Question[] = testQuestions
-    private themes: QuizTheme[] = testThemes
+    private questions: Question[] = [...testQuestions]
+    private themes: QuizTheme[] = [...testThemes]
     private hallOfFame: any[] = []
+    private createdAnswers: Map<number, any[]> = new Map()
+    private createdTextAnswers: Map<number, any[]> = new Map()
     private lastId = {
         question: 9,
         answer: 100,
@@ -17,6 +19,23 @@ export class MockPrismaAdapter {
         pictureMetadata: 100,
         hallOfFame: 4,
         quizTheme: 2,
+    }
+
+    // Reset state for testing
+    reset() {
+        this.questions = [...testQuestions]
+        this.themes = [...testThemes]
+        this.hallOfFame = []
+        this.createdAnswers = new Map()
+        this.createdTextAnswers = new Map()
+        this.lastId = {
+            question: 9,
+            answer: 100,
+            textAnswer: 100,
+            pictureMetadata: 100,
+            hallOfFame: 4,
+            quizTheme: 2,
+        }
     }
 
     // Question operations
@@ -42,6 +61,15 @@ export class MockPrismaAdapter {
                 const themeFilter = params.where.theme
                 filtered = filtered.filter((q) => q.theme === themeFilter)
             }
+            if (params.where.type) {
+                filtered = filtered.filter((q) => q.type === params.where.type)
+            }
+            if (params.where.question?.contains) {
+                const search = params.where.question.contains.toLowerCase()
+                filtered = filtered.filter((q) =>
+                    q.question.toLowerCase().includes(search)
+                )
+            }
         }
 
         // Apply distinct
@@ -60,12 +88,29 @@ export class MockPrismaAdapter {
             const orderKey = Object.keys(params.orderBy)[0]
             const orderDir = params.orderBy[orderKey]
             filtered.sort((a: any, b: any) => {
+                const aVal = parseInt(a.id.replace('test-', ''))
+                const bVal = parseInt(b.id.replace('test-', ''))
+                if (orderKey === 'id') {
+                    if (orderDir === 'asc') {
+                        return aVal - bVal
+                    } else {
+                        return bVal - aVal
+                    }
+                }
                 if (orderDir === 'asc') {
-                    return a[orderKey] > b[orderKey] ? 1 : -1
+                    return (a as any)[orderKey] > (b as any)[orderKey] ? 1 : -1
                 } else {
-                    return a[orderKey] < b[orderKey] ? 1 : -1
+                    return (a as any)[orderKey] < (b as any)[orderKey] ? 1 : -1
                 }
             })
+        }
+
+        // Apply pagination (skip/take)
+        if (params.skip !== undefined || params.take !== undefined) {
+            const skip = params.skip || 0
+            const take =
+                params.take !== undefined ? params.take : filtered.length
+            filtered = filtered.slice(skip, skip + take)
         }
 
         // Apply select (for categories)
@@ -83,9 +128,30 @@ export class MockPrismaAdapter {
         let filtered = [...this.questions]
 
         if (params.where) {
+            if (params.where.category) {
+                const categoryFilter =
+                    typeof params.where.category === 'string'
+                        ? params.where.category
+                        : params.where.category.equals
+                filtered = filtered.filter((q) => q.category === categoryFilter)
+            }
             if (params.where.difficulty) {
                 filtered = filtered.filter(
                     (q) => q.difficulty === params.where.difficulty
+                )
+            }
+            if (params.where.type) {
+                filtered = filtered.filter((q) => q.type === params.where.type)
+            }
+            if (params.where.theme) {
+                filtered = filtered.filter(
+                    (q) => q.theme === params.where.theme
+                )
+            }
+            if (params.where.question?.contains) {
+                const search = params.where.question.contains.toLowerCase()
+                filtered = filtered.filter((q) =>
+                    q.question.toLowerCase().includes(search)
                 )
             }
         }
@@ -112,12 +178,113 @@ export class MockPrismaAdapter {
 
     async questionCreate(params: any): Promise<any> {
         const id = ++this.lastId.question
+        // Create a new question and add it to the questions array
         const newQuestion: any = {
-            id: id.toString(),
-            ...params.data,
+            id: `test-${id}`,
+            type: params.data.type,
+            question: params.data.question,
+            category: params.data.category,
+            difficulty: params.data.difficulty,
+            theme: params.data.theme || undefined,
         }
-        this.questions.push(newQuestion as Question)
-        return { id, ...params.data }
+        // Store the question for later retrieval
+        this.questions.push(newQuestion)
+
+        // Return the basic question data - answers are added separately via createMany
+        return {
+            id,
+            type: params.data.type,
+            question: params.data.question,
+            category: params.data.category,
+            difficulty: params.data.difficulty,
+            theme: params.data.theme || null,
+            info: params.data.info || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }
+    }
+
+    async questionFindUnique(params: any): Promise<any | null> {
+        const id = params.where.id
+        const question = this.questions.find(
+            (q) => parseInt(q.id.replace('test-', '')) === id
+        )
+        if (!question) return null
+
+        // Check if we have dynamically created answers for this question
+        const createdAnswers = this.createdAnswers.get(id)
+        const createdTextAnswers = this.createdTextAnswers.get(id)
+
+        // If we have created answers/text answers, build a custom response
+        if (createdAnswers || createdTextAnswers) {
+            const base = this.questionToPrismaFormat(question, {})
+            if (params.include?.answers && createdAnswers) {
+                base.answers = createdAnswers.map((a: any, index: number) => ({
+                    id: id * 10 + index,
+                    questionId: id,
+                    answerText: a.answerText,
+                    isCorrect: a.isCorrect,
+                    answerOrder: a.answerOrder,
+                }))
+            }
+            if (params.include?.textAnswers && createdTextAnswers) {
+                base.textAnswers = createdTextAnswers.map(
+                    (a: any, index: number) => ({
+                        id: id * 10 + index,
+                        questionId: id,
+                        correctAnswer: a.correctAnswer,
+                        isPrimary: a.isPrimary,
+                    })
+                )
+            }
+            return base
+        }
+
+        return this.questionToPrismaFormat(question, params.include || {})
+    }
+
+    async questionUpdate(params: any): Promise<any> {
+        const id = params.where.id
+        const index = this.questions.findIndex(
+            (q) => parseInt(q.id.replace('test-', '')) === id
+        )
+        if (index === -1) throw new Error('Question not found')
+
+        // Update the question
+        const existing = this.questions[index]
+        this.questions[index] = {
+            ...existing,
+            ...params.data,
+            id: existing.id, // Keep the original id
+        } as Question
+
+        return this.questionToPrismaFormat(this.questions[index], {
+            answers: true,
+            textAnswers: true,
+        })
+    }
+
+    async questionDelete(params: any): Promise<any> {
+        const id = params.where.id
+        const index = this.questions.findIndex(
+            (q) => parseInt(q.id.replace('test-', '')) === id
+        )
+        if (index === -1) throw new Error('Question not found')
+
+        const deleted = this.questions.splice(index, 1)[0]
+        return this.questionToPrismaFormat(deleted, {})
+    }
+
+    async questionDeleteMany(params: any): Promise<{ count: number }> {
+        if (params.where?.id?.in) {
+            const ids = params.where.id.in
+            const initialCount = this.questions.length
+            this.questions = this.questions.filter(
+                (q) => !ids.includes(parseInt(q.id.replace('test-', '')))
+            )
+            return { count: initialCount - this.questions.length }
+        }
+        return { count: 0 }
     }
 
     // Hall of Fame operations
@@ -177,10 +344,10 @@ export class MockPrismaAdapter {
         return entry || null
     }
 
-    async hallOfFameCount(params: any): Promise<number> {
+    async hallOfFameCount(params: any = {}): Promise<number> {
         let filtered = [...this.hallOfFame]
 
-        if (params.where) {
+        if (params?.where) {
             if (params.where.score?.gt !== undefined) {
                 filtered = filtered.filter(
                     (e) => e.score > params.where.score.gt
@@ -203,15 +370,45 @@ export class MockPrismaAdapter {
 
     // Answer and metadata operations (used by createMany)
     async answerCreateMany(params: any): Promise<any> {
+        // Store answers keyed by questionId for retrieval in findUnique
+        if (params.data && params.data.length > 0) {
+            const questionId = params.data[0].questionId
+            this.createdAnswers.set(questionId, params.data)
+        }
         return { count: params.data.length }
+    }
+
+    async answerDeleteMany(params: any): Promise<{ count: number }> {
+        if (params.where?.questionId) {
+            this.createdAnswers.delete(params.where.questionId)
+        }
+        return { count: params.where?.questionId ? 4 : 0 }
     }
 
     async textAnswerCreate(params: any): Promise<any> {
-        return { id: ++this.lastId.textAnswer, ...params.data }
+        const questionId = params.data.questionId
+        const existing = this.createdTextAnswers.get(questionId) || []
+        existing.push({ id: ++this.lastId.textAnswer, ...params.data })
+        this.createdTextAnswers.set(questionId, existing)
+        return { id: this.lastId.textAnswer, ...params.data }
     }
 
     async textAnswerCreateMany(params: any): Promise<any> {
+        // Store text answers keyed by questionId
+        if (params.data && params.data.length > 0) {
+            const questionId = params.data[0].questionId
+            const existing = this.createdTextAnswers.get(questionId) || []
+            existing.push(...params.data)
+            this.createdTextAnswers.set(questionId, existing)
+        }
         return { count: params.data.length }
+    }
+
+    async textAnswerDeleteMany(params: any): Promise<{ count: number }> {
+        if (params.where?.questionId) {
+            this.createdTextAnswers.delete(params.where.questionId)
+        }
+        return { count: params.where?.questionId ? 1 : 0 }
     }
 
     async pictureMetadataCreate(params: any): Promise<any> {
@@ -263,6 +460,64 @@ export class MockPrismaAdapter {
         }
 
         return filtered.map((t) => this.themeToPrismaFormat(t))
+    }
+
+    async quizThemeFindUnique(params: any): Promise<any | null> {
+        const id = params.where.id
+        const theme = this.themes.find((t) => parseInt(t.id) === id)
+        if (!theme) return null
+        return this.themeToPrismaFormat(theme)
+    }
+
+    async quizThemeCount(params: any = {}): Promise<number> {
+        let filtered = [...this.themes]
+        if (params.where?.isActive !== undefined) {
+            filtered = filtered.filter(
+                (t) => t.isActive === params.where.isActive
+            )
+        }
+        return filtered.length
+    }
+
+    async quizThemeCreate(params: any): Promise<any> {
+        const id = ++this.lastId.quizTheme
+        const newTheme: QuizTheme = {
+            id: id.toString(),
+            themeKey: params.data.themeKey,
+            themeName: params.data.themeName,
+            category: params.data.category,
+            description: params.data.description || undefined,
+            icon: params.data.icon || undefined,
+            isActive:
+                params.data.isActive !== undefined
+                    ? params.data.isActive
+                    : true,
+        }
+        this.themes.push(newTheme)
+        return this.themeToPrismaFormat(newTheme)
+    }
+
+    async quizThemeUpdate(params: any): Promise<any> {
+        const id = params.where.id
+        const index = this.themes.findIndex((t) => parseInt(t.id) === id)
+        if (index === -1) throw new Error('Theme not found')
+
+        const existing = this.themes[index]
+        this.themes[index] = {
+            ...existing,
+            ...params.data,
+            id: existing.id, // Keep the original id
+        }
+        return this.themeToPrismaFormat(this.themes[index])
+    }
+
+    async quizThemeDelete(params: any): Promise<any> {
+        const id = params.where.id
+        const index = this.themes.findIndex((t) => parseInt(t.id) === id)
+        if (index === -1) throw new Error('Theme not found')
+
+        const deleted = this.themes.splice(index, 1)[0]
+        return this.themeToPrismaFormat(deleted)
     }
 
     private themeToPrismaFormat(t: QuizTheme): any {
@@ -348,16 +603,22 @@ export function createMockPrismaClient() {
     return {
         question: {
             findMany: (params?: any) => adapter.questionFindMany(params),
+            findUnique: (params: any) => adapter.questionFindUnique(params),
             count: (params?: any) => adapter.questionCount(params),
             groupBy: (params: any) => adapter.questionGroupBy(params),
             create: (params: any) => adapter.questionCreate(params),
+            update: (params: any) => adapter.questionUpdate(params),
+            delete: (params: any) => adapter.questionDelete(params),
+            deleteMany: (params: any) => adapter.questionDeleteMany(params),
         },
         answer: {
             createMany: (params: any) => adapter.answerCreateMany(params),
+            deleteMany: (params: any) => adapter.answerDeleteMany(params),
         },
         textAnswer: {
             create: (params: any) => adapter.textAnswerCreate(params),
             createMany: (params: any) => adapter.textAnswerCreateMany(params),
+            deleteMany: (params: any) => adapter.textAnswerDeleteMany(params),
         },
         hallOfFame: {
             create: (params: any) => adapter.hallOfFameCreate(params),
@@ -367,7 +628,14 @@ export function createMockPrismaClient() {
         },
         quizTheme: {
             findMany: (params?: any) => adapter.quizThemeFindMany(params),
+            findUnique: (params: any) => adapter.quizThemeFindUnique(params),
+            count: (params?: any) => adapter.quizThemeCount(params),
+            create: (params: any) => adapter.quizThemeCreate(params),
+            update: (params: any) => adapter.quizThemeUpdate(params),
+            delete: (params: any) => adapter.quizThemeDelete(params),
         },
+        // Expose reset for testing
+        _adapter: adapter,
     }
 }
 

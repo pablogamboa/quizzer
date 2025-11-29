@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { createHtmlPlugin } from 'vite-plugin-html'
+import { resolve } from 'path'
 
 export default defineConfig({
     plugins: [
@@ -28,6 +29,10 @@ export default defineConfig({
         emptyOutDir: true,
         minify: 'esbuild',
         rollupOptions: {
+            input: {
+                main: resolve(__dirname, 'index.html'),
+                admin: resolve(__dirname, 'admin/index.html'),
+            },
             output: {
                 entryFileNames: 'assets/[name].[hash].js',
                 chunkFileNames: 'assets/[name].[hash].js',

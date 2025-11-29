@@ -11,6 +11,8 @@ routes = [
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
 
 [observability]
 enabled = true
@@ -38,6 +40,11 @@ script_name = "quizzer"
 tag = "v1"
 new_sqlite_classes = ["GameSessionRpc"]
 
+# R2 Bucket for image uploads
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "quizzer-images"
+
 # Development configuration
 [env.development]
 name = "quizzer-dev"
@@ -48,6 +55,8 @@ routes = [
 
 [env.development.vars]
 ENVIRONMENT = "development"
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
 
 [env.development.observability]
 enabled = true
@@ -61,3 +70,8 @@ database_id = "0c512ecc-5428-44c3-9e76-232f3aae5460"
 [[env.development.kv_namespaces]]
 binding = "GAME_CODES"
 id = "60c87d5029d94f0892353263d88f6fd4"
+
+# R2 Bucket for development image uploads
+[[env.development.r2_buckets]]
+binding = "IMAGES"
+bucket_name = "quizzer-images-dev"

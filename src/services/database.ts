@@ -8,6 +8,25 @@ import {
     QuizTheme,
 } from '../data/questions'
 
+// Admin-specific types
+export interface PaginatedResult<T> {
+    items: T[]
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+}
+
+export interface QuestionFilters {
+    category?: string
+    difficulty?: string
+    type?: string
+    theme?: string
+    search?: string
+    page?: number
+    pageSize?: number
+}
+
 export class QuestionService {
     private prisma: any
 
@@ -436,6 +455,352 @@ export class QuestionService {
         }
 
         return shuffled.slice(0, count).map((q) => this.buildQuestion(q))
+    }
+
+    // Admin CRUD methods
+
+    async getQuestionById(id: number): Promise<Question | null> {
+        const question = await this.prisma.question.findUnique({
+            where: { id },
+            include: {
+                answers: {
+                    orderBy: {
+                        answerOrder: 'asc',
+                    },
+                },
+                textAnswers: true,
+            },
+        })
+
+        if (!question) {
+            return null
+        }
+
+        return this.buildQuestion(question)
+    }
+
+    async getPaginatedQuestions(
+        filters: QuestionFilters
+    ): Promise<PaginatedResult<Question>> {
+        const {
+            category,
+            difficulty,
+            type,
+            theme,
+            search,
+            page = 1,
+            pageSize = 25,
+        } = filters
+
+        const where: any = {}
+        if (category) where.category = category
+        if (difficulty) where.difficulty = difficulty
+        if (type) where.type = type
+        if (theme) where.theme = theme
+        if (search) {
+            where.question = {
+                contains: search,
+            }
+        }
+
+        const [questions, total] = await Promise.all([
+            this.prisma.question.findMany({
+                where,
+                include: {
+                    answers: {
+                        orderBy: {
+                            answerOrder: 'asc',
+                        },
+                    },
+                    textAnswers: true,
+                },
+                orderBy: {
+                    id: 'desc',
+                },
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+            }),
+            this.prisma.question.count({ where }),
+        ])
+
+        return {
+            items: questions.map((q: any) => this.buildQuestion(q)),
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        }
+    }
+
+    async createQuestion(data: Omit<Question, 'id'>): Promise<Question> {
+        const id = await this.addQuestion(data)
+        const question = await this.getQuestionById(id)
+        if (!question) {
+            throw new Error('Failed to retrieve created question')
+        }
+        return question
+    }
+
+    async updateQuestion(
+        id: number,
+        data: Partial<Omit<Question, 'id'>>
+    ): Promise<Question> {
+        // Prepare info JSON for picture questions
+        let info: string | undefined = undefined
+        if (data.type === 'picture' && 'imageUrl' in data) {
+            info = JSON.stringify({ imageUrl: (data as any).imageUrl })
+        }
+
+        // Update the question itself
+        await this.prisma.question.update({
+            where: { id },
+            data: {
+                type: data.type,
+                question: data.question,
+                category: data.category,
+                difficulty: data.difficulty,
+                theme: data.theme || null,
+                info,
+            },
+        })
+
+        // Update answers if provided
+        if (data.type === 'trivia' || data.type === 'picture') {
+            const q = data as Partial<TriviaQuestion | PictureQuestion>
+            if (q.answers) {
+                // Delete existing answers and recreate
+                await this.prisma.answer.deleteMany({
+                    where: { questionId: id },
+                })
+                await this.prisma.answer.createMany({
+                    data: q.answers.map((answer, i) => ({
+                        questionId: id,
+                        answerText: answer,
+                        isCorrect: i === q.correct,
+                        answerOrder: i,
+                    })),
+                })
+            }
+        } else if (data.type === 'question') {
+            const q = data as Partial<FreeTextQuestion>
+            if (q.correctAnswer !== undefined) {
+                // Delete existing text answers and recreate
+                await this.prisma.textAnswer.deleteMany({
+                    where: { questionId: id },
+                })
+                await this.prisma.textAnswer.create({
+                    data: {
+                        questionId: id,
+                        correctAnswer: q.correctAnswer,
+                        isPrimary: true,
+                    },
+                })
+                if (q.acceptableAnswers && q.acceptableAnswers.length > 0) {
+                    await this.prisma.textAnswer.createMany({
+                        data: q.acceptableAnswers.map((answer) => ({
+                            questionId: id,
+                            correctAnswer: answer,
+                            isPrimary: false,
+                        })),
+                    })
+                }
+            }
+        }
+
+        const question = await this.getQuestionById(id)
+        if (!question) {
+            throw new Error('Failed to retrieve updated question')
+        }
+        return question
+    }
+
+    async deleteQuestion(id: number): Promise<void> {
+        // Cascade delete is handled by Prisma schema
+        await this.prisma.question.delete({
+            where: { id },
+        })
+    }
+
+    async bulkDeleteQuestions(ids: number[]): Promise<number> {
+        const result = await this.prisma.question.deleteMany({
+            where: {
+                id: {
+                    in: ids,
+                },
+            },
+        })
+        return result.count
+    }
+
+    // Theme CRUD methods
+
+    async getAllThemes(): Promise<QuizTheme[]> {
+        const themes = await this.prisma.quizTheme.findMany({
+            orderBy: [
+                {
+                    category: 'asc',
+                },
+                {
+                    themeName: 'asc',
+                },
+            ],
+        })
+
+        return themes.map((t: any) => ({
+            id: t.id.toString(),
+            themeKey: t.themeKey,
+            themeName: t.themeName,
+            category: t.category,
+            description: t.description || undefined,
+            icon: t.icon || undefined,
+            isActive: t.isActive,
+        }))
+    }
+
+    async getThemeById(id: number): Promise<QuizTheme | null> {
+        const theme = await this.prisma.quizTheme.findUnique({
+            where: { id },
+        })
+
+        if (!theme) {
+            return null
+        }
+
+        return {
+            id: theme.id.toString(),
+            themeKey: theme.themeKey,
+            themeName: theme.themeName,
+            category: theme.category,
+            description: theme.description || undefined,
+            icon: theme.icon || undefined,
+            isActive: theme.isActive,
+        }
+    }
+
+    async createTheme(data: Omit<QuizTheme, 'id'>): Promise<QuizTheme> {
+        const theme = await this.prisma.quizTheme.create({
+            data: {
+                themeKey: data.themeKey,
+                themeName: data.themeName,
+                category: data.category,
+                description: data.description || null,
+                icon: data.icon || null,
+                isActive: data.isActive,
+            },
+        })
+
+        return {
+            id: theme.id.toString(),
+            themeKey: theme.themeKey,
+            themeName: theme.themeName,
+            category: theme.category,
+            description: theme.description || undefined,
+            icon: theme.icon || undefined,
+            isActive: theme.isActive,
+        }
+    }
+
+    async updateTheme(
+        id: number,
+        data: Partial<Omit<QuizTheme, 'id'>>
+    ): Promise<QuizTheme> {
+        const theme = await this.prisma.quizTheme.update({
+            where: { id },
+            data: {
+                themeKey: data.themeKey,
+                themeName: data.themeName,
+                category: data.category,
+                description: data.description,
+                icon: data.icon,
+                isActive: data.isActive,
+            },
+        })
+
+        return {
+            id: theme.id.toString(),
+            themeKey: theme.themeKey,
+            themeName: theme.themeName,
+            category: theme.category,
+            description: theme.description || undefined,
+            icon: theme.icon || undefined,
+            isActive: theme.isActive,
+        }
+    }
+
+    async deleteTheme(id: number): Promise<void> {
+        await this.prisma.quizTheme.delete({
+            where: { id },
+        })
+    }
+
+    async getThemeQuestionCount(themeKey: string): Promise<number> {
+        return this.prisma.question.count({
+            where: { theme: themeKey },
+        })
+    }
+
+    // Admin stats
+
+    async getAdminStats(): Promise<{
+        totalQuestions: number
+        questionsByType: Record<string, number>
+        questionsByCategory: Record<string, number>
+        questionsByDifficulty: Record<string, number>
+        totalThemes: number
+        activeThemes: number
+        totalHallOfFameEntries: number
+    }> {
+        const [
+            totalQuestions,
+            typeStats,
+            categoryStats,
+            difficultyStats,
+            totalThemes,
+            activeThemes,
+            totalHallOfFameEntries,
+        ] = await Promise.all([
+            this.prisma.question.count(),
+            this.prisma.question.groupBy({
+                by: ['type'],
+                _count: { type: true },
+            }),
+            this.prisma.question.groupBy({
+                by: ['category'],
+                _count: { category: true },
+            }),
+            this.prisma.question.groupBy({
+                by: ['difficulty'],
+                _count: { difficulty: true },
+            }),
+            this.prisma.quizTheme.count(),
+            this.prisma.quizTheme.count({ where: { isActive: true } }),
+            this.prisma.hallOfFame.count(),
+        ])
+
+        const questionsByType: Record<string, number> = {}
+        for (const stat of typeStats) {
+            questionsByType[stat.type] = stat._count.type
+        }
+
+        const questionsByCategory: Record<string, number> = {}
+        for (const stat of categoryStats) {
+            questionsByCategory[stat.category] = stat._count.category
+        }
+
+        const questionsByDifficulty: Record<string, number> = {}
+        for (const stat of difficultyStats) {
+            questionsByDifficulty[stat.difficulty] = stat._count.difficulty
+        }
+
+        return {
+            totalQuestions,
+            questionsByType,
+            questionsByCategory,
+            questionsByDifficulty,
+            totalThemes,
+            activeThemes,
+            totalHallOfFameEntries,
+        }
     }
 
     async getHallOfFameEntry(

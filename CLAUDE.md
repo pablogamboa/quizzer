@@ -474,3 +474,69 @@ npm run test:e2e:ui
 
 - Do not run the whole e2e test suite to verify a bug unless explicitly told to. It's better to just run the chromium
   tests for a quick verification with `npm run test:e2e -- --project=chromium`
+
+## Admin Interface
+
+The admin interface is available at `/admin/` and provides a web-based UI for managing quiz content.
+
+### Accessing the Admin
+
+1. Navigate to `/admin/` in your browser
+2. Enter your credentials when prompted (HTTP Basic Auth)
+3. Default dev credentials: `admin` / `admin123`
+
+### Admin Features
+
+- **Dashboard**: Overview of questions, themes, and statistics
+- **Questions Management**: Create, edit, delete questions (trivia, text, picture)
+- **Themes Management**: Create and manage themed quiz categories
+- **Image Upload**: Upload images to R2 storage or use external URLs
+
+### Admin API Endpoints
+
+All admin endpoints are under `/api/admin/` and require authentication:
+
+| Method | Endpoint                    | Description                |
+| ------ | --------------------------- | -------------------------- |
+| GET    | `/api/admin/stats`          | Dashboard statistics       |
+| GET    | `/api/admin/questions`      | List questions (paginated) |
+| GET    | `/api/admin/questions/:id`  | Get single question        |
+| POST   | `/api/admin/questions`      | Create question            |
+| PUT    | `/api/admin/questions/:id`  | Update question            |
+| DELETE | `/api/admin/questions/:id`  | Delete question            |
+| DELETE | `/api/admin/questions/bulk` | Bulk delete questions      |
+| GET    | `/api/admin/themes`         | List all themes            |
+| GET    | `/api/admin/themes/:id`     | Get single theme           |
+| POST   | `/api/admin/themes`         | Create theme               |
+| PUT    | `/api/admin/themes/:id`     | Update theme               |
+| DELETE | `/api/admin/themes/:id`     | Delete theme               |
+| POST   | `/api/admin/images/upload`  | Upload image to R2         |
+| GET    | `/api/admin/images`         | List uploaded images       |
+| DELETE | `/api/admin/images/:key`    | Delete image               |
+
+### Environment Variables
+
+Admin credentials must be configured:
+
+```bash
+# For production, set secrets via wrangler:
+wrangler secret put ADMIN_USERNAME
+wrangler secret put ADMIN_PASSWORD
+
+# For local development, they're in wrangler.toml [env.development.vars]
+```
+
+### R2 Image Storage Setup
+
+For image uploads to work, create the R2 bucket:
+
+```bash
+# Create production bucket
+npx wrangler r2 bucket create quizzer-images
+
+# Create development bucket
+npx wrangler r2 bucket create quizzer-images-dev
+
+# Optionally, enable public access for direct image URLs
+# (configured in Cloudflare dashboard)
+```
