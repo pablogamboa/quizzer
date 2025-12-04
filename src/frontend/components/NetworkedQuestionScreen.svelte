@@ -362,13 +362,13 @@
     }
     .progress-bar {
         height: 8px;
-        background-color: #e2e8f0;
+        background-color: var(--bg-surface-hover);
         border-radius: var(--radius-full);
         overflow: hidden;
     }
     .progress-fill {
         height: 100%;
-        background: var(--primary-gradient);
+        background: var(--gradient-brand);
         transition: width 0.3s ease;
     }
     .stats {
@@ -377,18 +377,21 @@
         align-items: center;
         margin-top: var(--spacing-xs);
         font-size: 0.9rem;
-        color: var(--text-secondary);
+        color: var(--text-muted);
         font-weight: 600;
     }
     .timer {
         display: flex;
         align-items: center;
         gap: var(--spacing-xs);
+        color: var(--text-main);
     }
 
     .question-card {
-        background: var(--bg-card);
-        border: 1px solid #e2e8f0;
+        background: var(--glass-panel);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-xl);
         padding: var(--spacing-xl);
         text-align: center;
@@ -398,7 +401,7 @@
     .category-text {
         font-size: 0.9rem;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: var(--spacing-sm);
@@ -408,6 +411,7 @@
         font-weight: 700;
         line-height: 1.4;
         margin-bottom: var(--spacing-md);
+        color: var(--text-main);
     }
     .image-container {
         margin-top: var(--spacing-md);
@@ -431,53 +435,65 @@
         align-items: center;
         width: 100%;
         padding: var(--spacing-md);
-        background-color: var(--bg-card);
-        border: 2px solid #e2e8f0;
+        background-color: var(--bg-surface);
+        border: 2px solid var(--glass-border);
         border-radius: var(--radius-lg);
         text-align: left;
         cursor: pointer;
-        transition: all var(--transition-base);
+        transition: all var(--duration-normal) var(--ease-out);
         box-shadow: var(--shadow-sm);
+        color: var(--text-main);
     }
     .answer-btn:hover:not(:disabled) {
         transform: translateY(-4px);
         box-shadow: var(--shadow-md);
-        border-color: var(--color-coral);
+        border-color: var(--primary);
+        background-color: var(--bg-surface-hover);
     }
     .answer-btn.selected {
-        border-color: var(--color-coral);
-        background: #ff6b6b11;
-        box-shadow: var(--shadow-md);
+        border-color: var(--primary);
+        background: rgba(59, 130, 246, 0.15);
+        box-shadow: var(--shadow-md), var(--shadow-glow);
     }
     .answer-btn .letter {
         flex-shrink: 0;
         width: 36px;
         height: 36px;
         margin-right: var(--spacing-md);
-        background-color: #f1f5f9;
+        background-color: var(--bg-surface-hover);
         border-radius: var(--radius-md);
         font-weight: 700;
         font-size: 1.1rem;
         display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--text-muted);
     }
     .answer-btn.selected .letter {
-        background: var(--primary-gradient);
+        background: var(--gradient-brand);
         color: white;
     }
     .answer-btn .text {
         font-size: 1rem;
         font-weight: 600;
+        color: var(--text-main);
     }
     .answer-btn.correct {
-        border-color: var(--color-green);
-        background: #06ffa511;
+        border-color: var(--success);
+        background: rgba(16, 185, 129, 0.15);
+    }
+    .answer-btn.correct .letter {
+        background: var(--success);
+        color: white;
     }
     .answer-btn.incorrect {
-        border-color: var(--color-coral);
-        background: #ff6b6b11;
+        border-color: var(--error);
+        background: rgba(239, 68, 68, 0.15);
         opacity: 0.7;
+    }
+    .answer-btn.incorrect .letter {
+        background: var(--error);
+        color: white;
     }
     .answer-btn:disabled {
         cursor: not-allowed;
@@ -493,19 +509,24 @@
         padding: var(--spacing-lg);
         font-size: 1.25rem;
         text-align: center;
-        border: 2px solid #e2e8f0;
+        border: 2px solid var(--glass-border);
         border-radius: var(--radius-lg);
-        transition: all var(--transition-fast);
+        background: var(--bg-surface);
+        color: var(--text-main);
+        transition: all var(--duration-fast);
     }
     .text-input-wrapper input:focus {
         outline: none;
-        border-color: var(--color-coral);
-        box-shadow: 0 0 0 3px #ff6b6b33;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        background: var(--bg-surface-hover);
     }
 
     .players-status-card {
-        background: var(--bg-card);
-        border: 1px solid #e2e8f0;
+        background: var(--glass-panel);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-lg);
         padding: var(--spacing-md);
         margin-top: var(--spacing-lg);
@@ -515,6 +536,7 @@
         font-size: 1rem;
         font-weight: 700;
         margin-bottom: var(--spacing-md);
+        color: var(--text-main);
     }
     .players-grid {
         display: grid;
@@ -526,19 +548,21 @@
         align-items: center;
         gap: var(--spacing-xs);
         padding: var(--spacing-xs);
-        background-color: #f8fafc;
+        background-color: var(--bg-surface-hover);
         border-radius: var(--radius-md);
         font-size: 0.9rem;
-        transition: all var(--transition-fast);
+        transition: all var(--duration-fast);
+        border: 1px solid transparent;
     }
     .player-status-item.answered {
-        background-color: #e0f8e9;
+        background-color: rgba(16, 185, 129, 0.15);
+        border-color: var(--success);
     }
     .avatar {
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background-color: var(--text-light);
+        background: var(--gradient-brand);
         color: white;
         display: flex;
         align-items: center;
@@ -552,16 +576,19 @@
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
+        color: var(--text-main);
     }
     .status-icon {
-        color: var(--color-green);
+        color: var(--success);
         font-weight: 700;
     }
     .score {
         font-weight: 700;
         padding: 2px 6px;
-        background: #e2e8f0;
+        background: var(--bg-surface);
         border-radius: var(--radius-sm);
+        color: var(--text-main);
+        border: 1px solid var(--glass-border);
     }
 
     .result-feedback {
@@ -571,19 +598,22 @@
         padding: var(--spacing-md);
         border-radius: var(--radius-lg);
         margin-top: var(--spacing-lg);
+        background: rgba(239, 68, 68, 0.15);
+        border: 2px solid var(--error);
     }
     .result-feedback.correct {
-        background: #e0f8e9;
-        border: 2px solid var(--color-green);
+        background: rgba(16, 185, 129, 0.15);
+        border: 2px solid var(--success);
     }
     .result-feedback .icon {
         font-size: 2rem;
     }
     .result-feedback .text-content strong {
         font-size: 1.25rem;
+        color: var(--text-main);
     }
     .result-feedback .text-content p {
-        color: var(--text-secondary);
+        color: var(--text-muted);
         margin-top: 2px;
     }
 
@@ -594,16 +624,16 @@
     .loading-container p {
         margin-top: var(--spacing-sm);
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-muted);
     }
 
     .error-message {
         margin-top: 1rem;
         padding: 1rem;
-        background: #ff6b6b33;
-        border: 1px solid var(--color-coral);
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid var(--error);
         border-radius: var(--radius-md);
-        color: var(--color-coral);
+        color: var(--error);
         text-align: center;
         font-weight: 600;
     }

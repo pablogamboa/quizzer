@@ -504,6 +504,25 @@ If server callbacks aren't being received by clients:
     - ❌ `rpcClient.on('questionStarted', (question, number, total) => ...)`
     - ✅ `rpcClient.on('questionStarted', (data) => { data.question, data.questionNumber, data.totalQuestions })`
 
+**Host Not Seeing Joined Players**:
+
+If the host doesn't see players who joined the lobby:
+
+This was caused by incorrect timing when preserving Cap'n Web RPC client stubs. The issue specifically affected the host (the first player to connect) due to the order of operations:
+
+1. **Problem**: The `client` parameter stub was captured in a closure (for the PlayerSession) before `.dup()` was called to preserve it. Cap'n Web auto-disposes parameter stubs when the RPC call returns, and the closure reference didn't prevent disposal.
+
+2. **Fix**: Call `.dup()` FIRST, before the client is used anywhere else. The duplicated reference is then used both in the PlayerSession closure and stored in the clients map. This ensures all references point to the preserved stub that won't be auto-disposed.
+
+```typescript
+// CORRECT: Duplicate first, use everywhere
+const dupedClient = (client as any).dup() as GameClientApi
+const session = createPlayerSession(playerId, this, dupedClient)
+this.clients.set(playerId, dupedClient)
+```
+
+The key insight: Cap'n Web's `.dup()` must be called before the original stub is captured in any closures or the dup may inherit the disposal state of the original.
+
 ## 🔗 API Endpoints
 
 ### Quiz API

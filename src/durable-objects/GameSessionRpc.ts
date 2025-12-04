@@ -215,11 +215,26 @@ export class GameSessionRpc extends DurableObject {
             throw new Error('Game has already started')
         }
 
-        // Check for reconnecting player
+        // IMPORTANT: Duplicate the client stub FIRST, before any other use!
+        // Cap'n Web auto-disposes parameter stubs when the call completes,
+        // but we need to keep this stub alive for broadcasting.
+        // The dup() must happen before the client is captured in any closures.
+        const dupedClient = (client as any).dup() as GameClientApi
+
+        console.log(
+            '[GameSessionRpc] Duplicated client stub, type:',
+            typeof dupedClient,
+            'has onGameStateUpdated:',
+            typeof dupedClient?.onGameStateUpdated
+        )
+
+        // Check for reconnecting player (e.g., host connecting after game creation)
         let playerId: string | null = null
+        let isReconnecting = false
         for (const [pid, player] of this.state.players.entries()) {
             if (player.name === playerName && !player.connected) {
                 playerId = pid
+                isReconnecting = true
                 break
             }
         }
@@ -241,23 +256,17 @@ export class GameSessionRpc extends DurableObject {
             player.connected = true
         }
 
-        // Create PlayerSession capability
-        const session = createPlayerSession(playerId, this, client)
+        // Create PlayerSession capability using the DUPED client
+        // This ensures the closure captures a reference that won't be auto-disposed
+        const session = createPlayerSession(playerId, this, dupedClient)
         this.sessions.set(playerId, session as any)
 
-        // IMPORTANT: Duplicate the client stub to prevent auto-disposal
-        // Cap'n Web auto-disposes parameter stubs when the call completes,
-        // but we need to keep this stub alive for broadcasting
-        this.clients.set(playerId, (client as any).dup())
+        // Store the duped client for broadcasting
+        this.clients.set(playerId, dupedClient)
 
         console.log(
             '[GameSessionRpc] Stored duplicated client for player:',
             playerId
-        )
-        console.log('[GameSessionRpc] Client type:', typeof client)
-        console.log(
-            '[GameSessionRpc] Client has onPlayerJoined:',
-            typeof client.onPlayerJoined
         )
 
         console.log(
@@ -266,19 +275,23 @@ export class GameSessionRpc extends DurableObject {
             'Clients:',
             this.clients.size
         )
+        console.log(
+            '[GameSessionRpc] All client IDs in map:',
+            Array.from(this.clients.keys())
+        )
 
         await this.persistState()
 
         const gameState = this.getGameStateSnapshot()
-        const playerInfo = this.state.players.get(playerId)!
 
-        // Send initial game state to the joining player
+        // Send initial game state to the joining player using the DUPED client
+        // This ensures we're using the same preserved reference everywhere
         console.log(
             '[GameSessionRpc] Sending initial state to joining player:',
             playerId
         )
         try {
-            await client.onGameStateUpdated(gameState)
+            await dupedClient.onGameStateUpdated(gameState)
             console.log('[GameSessionRpc] Successfully sent initial state')
         } catch (error) {
             console.error(
@@ -287,12 +300,19 @@ export class GameSessionRpc extends DurableObject {
             )
         }
 
-        // Send updated game state to all other players
-        console.log('[GameSessionRpc] Broadcasting game state update to others')
+        // Broadcast to ALL players (including the one who just joined)
+        // This ensures everyone has a consistent view, especially important when:
+        // - The host reconnects after other players have joined
+        // - A player's connection status changes
+        // We broadcast to everyone because other players may have joined while
+        // this player was connecting, and those players need to know about this player
+        console.log(
+            '[GameSessionRpc] Broadcasting game state update to all players'
+        )
         await this.broadcast(async (c) => {
             console.log('[GameSessionRpc] Calling onGameStateUpdated on client')
             await c.onGameStateUpdated(gameState)
-        }, playerId)
+        })
 
         return session
     }
