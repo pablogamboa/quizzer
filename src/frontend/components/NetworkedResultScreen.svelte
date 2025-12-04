@@ -231,43 +231,46 @@
         margin-bottom: var(--spacing-xl);
     }
     .header h2 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: var(--font-heading);
         font-size: 3rem;
         margin-bottom: var(--spacing-xs);
     }
     .header p {
         font-size: 1.1rem;
-        color: var(--text-secondary);
+        color: var(--text-muted);
     }
 
     .winner-card {
-        background: var(--dark-gradient);
+        background: var(--gradient-brand);
         color: white;
         border-radius: var(--radius-xl);
         padding: var(--spacing-xl);
         text-align: center;
         margin-bottom: var(--spacing-xl);
         box-shadow: var(--shadow-glow);
-        animation: pulse 2s infinite;
+        animation: pulse-glow 2s infinite;
     }
     .winner-card .icon {
         font-size: 4rem;
         margin-bottom: var(--spacing-sm);
-        animation: bounce 1.5s infinite;
     }
     .winner-card h3 {
         font-size: 2rem;
         font-weight: 700;
         margin-bottom: var(--spacing-xs);
+        color: white;
     }
     .winner-card p {
         font-size: 1.1rem;
-        opacity: 0.9;
+        opacity: 0.95;
+        color: rgba(255, 255, 255, 0.9);
     }
 
     .leaderboard {
-        background: var(--bg-card);
-        border: 1px solid #e2e8f0;
+        background: var(--glass-panel);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-lg);
         padding: var(--spacing-lg);
         margin-bottom: var(--spacing-xl);
@@ -278,6 +281,7 @@
         font-weight: 700;
         margin-bottom: var(--spacing-md);
         text-align: center;
+        color: var(--text-main);
     }
     .player-row {
         display: grid;
@@ -290,7 +294,8 @@
         overflow: hidden;
     }
     .player-row.is-winner {
-        background: #fffbeb;
+        background: rgba(245, 158, 11, 0.15);
+        border: 1px solid var(--warning);
     }
     .rank {
         font-size: 1.5rem;
@@ -305,7 +310,7 @@
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: var(--primary-gradient);
+        background: var(--gradient-brand);
         color: white;
         display: flex;
         align-items: center;
@@ -314,16 +319,19 @@
     }
     .name {
         font-weight: 600;
+        color: var(--text-main);
     }
     .score {
         text-align: right;
         font-size: 1.1rem;
+        color: var(--text-main);
     }
     .score strong {
         font-size: 1.25rem;
+        color: var(--text-main);
     }
     .score .total {
-        color: var(--text-light);
+        color: var(--text-muted);
     }
     .percentage-bar {
         position: absolute;
@@ -331,18 +339,20 @@
         bottom: 0;
         height: 4px;
         width: 100%;
-        background-color: #f1f5f9;
+        background-color: var(--bg-surface-hover);
     }
     .percentage-bar .fill {
         height: 100%;
-        background: var(--secondary-gradient);
+        background: var(--gradient-brand);
         border-radius: 0 2px 2px 0;
         transition: width 0.5s ease-out;
     }
 
     .summary-card {
-        background: var(--bg-card);
-        border: 1px solid #e2e8f0;
+        background: var(--glass-panel);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-lg);
         padding: var(--spacing-lg);
         margin-bottom: var(--spacing-xl);
@@ -353,6 +363,7 @@
         font-weight: 700;
         margin-bottom: var(--spacing-md);
         text-align: center;
+        color: var(--text-main);
     }
     .summary-grid {
         display: grid;
@@ -362,13 +373,14 @@
     }
     .summary-grid .info-label {
         font-size: 0.9rem;
-        color: var(--text-secondary);
+        color: var(--text-muted);
         margin-bottom: var(--spacing-xs);
         display: block;
     }
     .summary-grid p {
         font-weight: 600;
         font-size: 1.1rem;
+        color: var(--text-main);
     }
 
     .actions {
@@ -385,7 +397,7 @@
     .loading-container p {
         margin-top: var(--spacing-sm);
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-muted);
     }
 
     @media (max-width: 768px) {
