@@ -9,8 +9,6 @@ declare namespace Cloudflare {
     interface Env {
         GAME_CODES: KVNamespace
         ENVIRONMENT: 'production' | 'development'
-        ADMIN_USERNAME: 'admin'
-        ADMIN_PASSWORD: 'admin123'
         DATABASE_URL: string
         GAME_SESSIONS_RPC: DurableObjectNamespace /* GameSessionRpc from quizzer */
         IMAGES: R2Bucket

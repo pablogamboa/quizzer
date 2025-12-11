@@ -71,7 +71,7 @@ The online multiplayer mode uses **Cap'n Web RPC** for bidirectional, type-safe 
 
 Located at `/admin/`, the admin interface provides a web-based management tool for quiz content:
 
-- 🔐 Protected by HTTP Basic Authentication (see Environment Variables below)
+- 🔐 Protected by Cloudflare Access (Zero Trust authentication)
 - 📊 Dashboard with quiz statistics overview (questions by type, difficulty, category)
 - ❓ Questions management (CRUD for trivia, text, and picture question types)
 - 🎨 Themes management with question counts per theme
@@ -80,9 +80,9 @@ Located at `/admin/`, the admin interface provides a web-based management tool f
 
 **Accessing the Admin:**
 
-1. Navigate to `http://localhost:8787/admin/` in development
-2. Login with credentials from `wrangler.toml` (default: admin/admin123)
-3. For production, set secrets via: `wrangler secret put ADMIN_PASSWORD`
+1. Configure Cloudflare Access to protect `/admin/*` and `/api/admin/*` paths
+2. Navigate to `http://localhost:8787/admin/` in development (no auth locally)
+3. In production, users will be authenticated via your configured identity provider
 
 ## 🎨 Design System - "Neon Quiz Show"
 

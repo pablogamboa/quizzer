@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { Hono } from 'hono'
 import { adminRoutes } from '../../src/routes/admin'
-import { basicAuth } from '../../src/middleware/auth'
 import type { Env } from '../../src/index'
 import { createMockPrismaClient } from './prisma-mock-adapter'
 
@@ -9,40 +8,25 @@ import { createMockPrismaClient } from './prisma-mock-adapter'
 type AdminEnv = Env & {
     IMAGES: R2Bucket
     R2_PUBLIC_URL?: string
-    ADMIN_USERNAME?: string
-    ADMIN_PASSWORD?: string
 }
 
 describe('Admin API Integration Tests', () => {
     let app: Hono<{ Bindings: AdminEnv }>
     let mockPrisma: ReturnType<typeof createMockPrismaClient>
 
-    // Helper to create authenticated request
-    const createAuthRequest = (
-        url: string,
-        options: RequestInit = {}
-    ): Request => {
-        const credentials = btoa('admin:password123')
-        return new Request(url, {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization: `Basic ${credentials}`,
-            },
-        })
+    // Helper to create request (no auth needed - protected by Cloudflare Access)
+    const createRequest = (url: string, options: RequestInit = {}): Request => {
+        return new Request(url, options)
     }
 
     // Helper to create env with mock Prisma
     const createEnv = () => ({
         DB: {} as any,
         __mockPrisma: mockPrisma,
-        ADMIN_USERNAME: 'admin',
-        ADMIN_PASSWORD: 'password123',
     })
 
     beforeAll(() => {
         app = new Hono<{ Bindings: AdminEnv }>()
-        app.use('/*', basicAuth())
         app.route('/', adminRoutes)
     })
 
@@ -51,56 +35,11 @@ describe('Admin API Integration Tests', () => {
         mockPrisma = createMockPrismaClient()
     })
 
-    describe('Authentication', () => {
-        it('should return 401 without credentials', async () => {
-            const request = new Request('http://localhost/stats')
-            const env = createEnv()
-            const response = await app.fetch(request, env)
-
-            expect(response.status).toBe(401)
-            expect(response.headers.get('WWW-Authenticate')).toBe(
-                'Basic realm="Admin Area"'
-            )
-        })
-
-        it('should return 401 with invalid credentials', async () => {
-            const credentials = btoa('wrong:wrong')
-            const request = new Request('http://localhost/stats', {
-                headers: { Authorization: `Basic ${credentials}` },
-            })
-            const env = createEnv()
-            const response = await app.fetch(request, env)
-
-            expect(response.status).toBe(401)
-        })
-
-        it('should return 503 when credentials not configured', async () => {
-            const credentials = btoa('admin:password123')
-            const request = new Request('http://localhost/stats', {
-                headers: { Authorization: `Basic ${credentials}` },
-            })
-            const env = {
-                DB: {} as any,
-                __mockPrisma: mockPrisma,
-                // Missing ADMIN_USERNAME and ADMIN_PASSWORD
-            }
-            const response = await app.fetch(request, env)
-
-            expect(response.status).toBe(503)
-        })
-
-        it('should allow access with valid credentials', async () => {
-            const request = createAuthRequest('http://localhost/stats')
-            const env = createEnv()
-            const response = await app.fetch(request, env)
-
-            expect(response.status).toBe(200)
-        })
-    })
+    // Note: Authentication is now handled by Cloudflare Access at the infrastructure level
 
     describe('GET /stats', () => {
         it('should return admin statistics', async () => {
-            const request = createAuthRequest('http://localhost/stats')
+            const request = createRequest('http://localhost/stats')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -117,7 +56,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('GET /questions', () => {
         it('should return paginated questions', async () => {
-            const request = createAuthRequest('http://localhost/questions')
+            const request = createRequest('http://localhost/questions')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -132,7 +71,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should filter questions by category', async () => {
-            const request = createAuthRequest(
+            const request = createRequest(
                 'http://localhost/questions?category=Geography'
             )
             const env = createEnv()
@@ -146,7 +85,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should filter questions by difficulty', async () => {
-            const request = createAuthRequest(
+            const request = createRequest(
                 'http://localhost/questions?difficulty=easy'
             )
             const env = createEnv()
@@ -160,7 +99,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should respect pagination parameters', async () => {
-            const request = createAuthRequest(
+            const request = createRequest(
                 'http://localhost/questions?page=1&pageSize=2'
             )
             const env = createEnv()
@@ -176,7 +115,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('GET /questions/:id', () => {
         it('should return a single question', async () => {
-            const request = createAuthRequest('http://localhost/questions/1')
+            const request = createRequest('http://localhost/questions/1')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -190,7 +129,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 404 for non-existent question', async () => {
-            const request = createAuthRequest('http://localhost/questions/9999')
+            const request = createRequest('http://localhost/questions/9999')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -200,7 +139,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 400 for invalid question ID', async () => {
-            const request = createAuthRequest('http://localhost/questions/abc')
+            const request = createRequest('http://localhost/questions/abc')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -221,7 +160,7 @@ describe('Admin API Integration Tests', () => {
                 correct: 1,
             }
 
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(questionData),
@@ -244,7 +183,7 @@ describe('Admin API Integration Tests', () => {
                 correctAnswer: 'Pacific',
             }
 
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(questionData),
@@ -259,7 +198,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate required fields', async () => {
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: 'Missing fields' }),
@@ -273,7 +212,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate question type', async () => {
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -292,7 +231,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate difficulty level', async () => {
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -311,7 +250,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate trivia questions have 4 answers', async () => {
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -332,7 +271,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate correct answer index for trivia', async () => {
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -353,7 +292,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate picture questions require imageUrl', async () => {
-            const request = createAuthRequest('http://localhost/questions', {
+            const request = createRequest('http://localhost/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -384,7 +323,7 @@ describe('Admin API Integration Tests', () => {
                 correct: 2,
             }
 
-            const request = createAuthRequest('http://localhost/questions/1', {
+            const request = createRequest('http://localhost/questions/1', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updateData),
@@ -398,14 +337,11 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 404 for non-existent question', async () => {
-            const request = createAuthRequest(
-                'http://localhost/questions/9999',
-                {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: 'Updated' }),
-                }
-            )
+            const request = createRequest('http://localhost/questions/9999', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: 'Updated' }),
+            })
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -417,7 +353,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('DELETE /questions/:id', () => {
         it('should delete a question', async () => {
-            const request = createAuthRequest('http://localhost/questions/1', {
+            const request = createRequest('http://localhost/questions/1', {
                 method: 'DELETE',
             })
             const env = createEnv()
@@ -429,12 +365,9 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 404 for non-existent question', async () => {
-            const request = createAuthRequest(
-                'http://localhost/questions/9999',
-                {
-                    method: 'DELETE',
-                }
-            )
+            const request = createRequest('http://localhost/questions/9999', {
+                method: 'DELETE',
+            })
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -446,14 +379,11 @@ describe('Admin API Integration Tests', () => {
 
     describe('DELETE /questions/bulk', () => {
         it('should bulk delete questions', async () => {
-            const request = createAuthRequest(
-                'http://localhost/questions/bulk',
-                {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: [1, 2, 3] }),
-                }
-            )
+            const request = createRequest('http://localhost/questions/bulk', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [1, 2, 3] }),
+            })
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -464,14 +394,11 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate ids array', async () => {
-            const request = createAuthRequest(
-                'http://localhost/questions/bulk',
-                {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: [] }),
-                }
-            )
+            const request = createRequest('http://localhost/questions/bulk', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [] }),
+            })
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -483,7 +410,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('GET /themes', () => {
         it('should return all themes with question counts', async () => {
-            const request = createAuthRequest('http://localhost/themes')
+            const request = createRequest('http://localhost/themes')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -501,7 +428,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('GET /themes/:id', () => {
         it('should return a single theme', async () => {
-            const request = createAuthRequest('http://localhost/themes/1')
+            const request = createRequest('http://localhost/themes/1')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -513,7 +440,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 404 for non-existent theme', async () => {
-            const request = createAuthRequest('http://localhost/themes/9999')
+            const request = createRequest('http://localhost/themes/9999')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -533,7 +460,7 @@ describe('Admin API Integration Tests', () => {
                 icon: '🎯',
             }
 
-            const request = createAuthRequest('http://localhost/themes', {
+            const request = createRequest('http://localhost/themes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(themeData),
@@ -548,7 +475,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should validate required fields', async () => {
-            const request = createAuthRequest('http://localhost/themes', {
+            const request = createRequest('http://localhost/themes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ themeName: 'Missing fields' }),
@@ -568,7 +495,7 @@ describe('Admin API Integration Tests', () => {
                 category: 'Test',
             }
 
-            const request = createAuthRequest('http://localhost/themes', {
+            const request = createRequest('http://localhost/themes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(themeData),
@@ -588,7 +515,7 @@ describe('Admin API Integration Tests', () => {
                 themeName: 'Updated Theme Name',
             }
 
-            const request = createAuthRequest('http://localhost/themes/1', {
+            const request = createRequest('http://localhost/themes/1', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updateData),
@@ -602,7 +529,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 404 for non-existent theme', async () => {
-            const request = createAuthRequest('http://localhost/themes/9999', {
+            const request = createRequest('http://localhost/themes/9999', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ themeName: 'Updated' }),
@@ -618,7 +545,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('DELETE /themes/:id', () => {
         it('should delete a theme', async () => {
-            const request = createAuthRequest('http://localhost/themes/1', {
+            const request = createRequest('http://localhost/themes/1', {
                 method: 'DELETE',
             })
             const env = createEnv()
@@ -630,7 +557,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 404 for non-existent theme', async () => {
-            const request = createAuthRequest('http://localhost/themes/9999', {
+            const request = createRequest('http://localhost/themes/9999', {
                 method: 'DELETE',
             })
             const env = createEnv()
@@ -644,7 +571,7 @@ describe('Admin API Integration Tests', () => {
 
     describe('GET /categories', () => {
         it('should return all categories', async () => {
-            const request = createAuthRequest('http://localhost/categories')
+            const request = createRequest('http://localhost/categories')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -656,12 +583,9 @@ describe('Admin API Integration Tests', () => {
 
     describe('Image endpoints', () => {
         it('should return 503 when IMAGES bucket not configured', async () => {
-            const request = createAuthRequest(
-                'http://localhost/images/upload',
-                {
-                    method: 'POST',
-                }
-            )
+            const request = createRequest('http://localhost/images/upload', {
+                method: 'POST',
+            })
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any
@@ -671,7 +595,7 @@ describe('Admin API Integration Tests', () => {
         })
 
         it('should return 503 for list images when IMAGES not configured', async () => {
-            const request = createAuthRequest('http://localhost/images')
+            const request = createRequest('http://localhost/images')
             const env = createEnv()
             const response = await app.fetch(request, env)
             const body = (await response.json()) as any

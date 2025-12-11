@@ -11,8 +11,6 @@ routes = [
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
 
 [observability]
 enabled = true
@@ -55,8 +53,6 @@ routes = [
 
 [env.development.vars]
 ENVIRONMENT = "development"
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
 
 [env.development.observability]
 enabled = true

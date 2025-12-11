@@ -482,8 +482,8 @@ The admin interface is available at `/admin/` and provides a web-based UI for ma
 ### Accessing the Admin
 
 1. Navigate to `/admin/` in your browser
-2. Enter your credentials when prompted (HTTP Basic Auth)
-3. Default dev credentials: `admin` / `admin123`
+2. In production, access is protected by Cloudflare Access (Zero Trust)
+3. In local development, admin routes are accessible without authentication
 
 ### Admin Features
 
@@ -494,7 +494,7 @@ The admin interface is available at `/admin/` and provides a web-based UI for ma
 
 ### Admin API Endpoints
 
-All admin endpoints are under `/api/admin/` and require authentication:
+All admin endpoints are under `/api/admin/` (protected by Cloudflare Access in production):
 
 | Method | Endpoint                    | Description                |
 | ------ | --------------------------- | -------------------------- |
@@ -514,17 +514,16 @@ All admin endpoints are under `/api/admin/` and require authentication:
 | GET    | `/api/admin/images`         | List uploaded images       |
 | DELETE | `/api/admin/images/:key`    | Delete image               |
 
-### Environment Variables
+### Cloudflare Access Setup
 
-Admin credentials must be configured:
+Admin routes are protected by Cloudflare Access in production. Configure Access in the Cloudflare dashboard:
 
-```bash
-# For production, set secrets via wrangler:
-wrangler secret put ADMIN_USERNAME
-wrangler secret put ADMIN_PASSWORD
+1. Go to Zero Trust → Access → Applications
+2. Create an application for your domain
+3. Add a policy to protect `/admin/*` and `/api/admin/*` paths
+4. Configure your identity provider (Google, GitHub, etc.)
 
-# For local development, they're in wrangler.toml [env.development.vars]
-```
+In local development, admin routes are accessible without authentication.
 
 ### R2 Image Storage Setup
 

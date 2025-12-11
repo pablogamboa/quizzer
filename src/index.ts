@@ -5,7 +5,6 @@ import { prettyJSON } from 'hono/pretty-json'
 import { quizRoutes } from './routes/quiz'
 import { multiplayerRoutes } from './routes/multiplayer'
 import { adminRoutes } from './routes/admin'
-import { basicAuth } from './middleware/auth'
 
 // Define the environment type
 export type Env = {
@@ -15,8 +14,6 @@ export type Env = {
     GAME_CODES: KVNamespace
     IMAGES?: R2Bucket
     R2_PUBLIC_URL?: string
-    ADMIN_USERNAME?: string
-    ADMIN_PASSWORD?: string
     __mockPrisma?: any // For testing only
 }
 
@@ -59,8 +56,7 @@ app.route('/api/quiz', quizRoutes)
 // Multiplayer API routes
 app.route('/api/multiplayer', multiplayerRoutes)
 
-// Admin API routes (protected by basic auth)
-app.use('/api/admin/*', basicAuth())
+// Admin API routes (protected by Cloudflare Access)
 app.route('/api/admin', adminRoutes)
 
 // 404 handler for API routes only
